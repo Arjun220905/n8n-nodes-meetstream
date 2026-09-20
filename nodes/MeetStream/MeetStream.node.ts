@@ -44,19 +44,31 @@ export class MeetStream implements INodeType {
 					{ name: 'Create Bot', value: 'createBot', action: 'Send a bot to a meeting' },
 					{ name: 'Get Bot', value: 'getBot', action: 'Get the full bot record' },
 					{ name: 'Get Recording', value: 'getRecording', action: 'Get the processed video recording' },
-					{ name: 'Get Summary', value: 'getSummary', action: 'Get the ai generated meeting summary' },
+					{
+						name: 'Get Summary', value: 'getSummary', action: 'Get the ai generated meeting summary',
+						description: 'Returns a summary only after MeetStream has generated one. A 404 means no summary is available for this bot.',
+					},
+					{ name: 'Get Transcriptions', value: 'getTranscriptions', action: 'Get post call transcription runs' },
 					{ name: 'Leave Meeting', value: 'removeBot', action: 'Make a bot leave while keeping its data' },
 				], default: 'createBot',
 			},
 			{
 				displayName: 'Operation', name: 'operation', type: 'options', noDataExpression: true,
 				displayOptions: { show: { resource: ['transcript'] } },
-				options: [{ name: 'Get Transcript', value: 'getTranscript', action: 'Get a transcript by transcript ID' }], default: 'getTranscript',
+				options: [{
+					name: 'Get Transcript', value: 'getTranscript', action: 'Get a transcript by transcript ID',
+					description: 'Requires a post-call transcript ID. Bots using meeting_captions expose caption artifacts instead.',
+				}], default: 'getTranscript',
 			},
 			{ displayName: 'Meeting Link', name: 'meetingLink', type: 'string', default: '', required: true, displayOptions: { show: { resource: ['bot'], operation: ['createBot'] } }, placeholder: 'https://meet.google.com/abc-defg-hij' },
 			{ displayName: 'Bot Name', name: 'botName', type: 'string', default: 'MeetStream Notetaker', displayOptions: { show: { resource: ['bot'], operation: ['createBot'] } } },
-			{ displayName: 'Bot ID', name: 'botId', type: 'string', default: '', required: true, displayOptions: { show: { resource: ['bot'], operation: ['getBot', 'getRecording', 'getSummary', 'removeBot'] } } },
+			{ displayName: 'Bot ID', name: 'botId', type: 'string', default: '', required: true, displayOptions: { show: { resource: ['bot'], operation: ['getBot', 'getTranscriptions', 'getRecording', 'getSummary', 'removeBot'] } } },
 			{ displayName: 'Transcript ID', name: 'transcriptId', type: 'string', default: '', required: true, displayOptions: { show: { resource: ['transcript'], operation: ['getTranscript'] } } },
+			{
+				displayName: 'Raw Response', name: 'raw', type: 'boolean', default: false,
+				description: 'Whether to return the transcription provider response without MeetStream formatting',
+				displayOptions: { show: { resource: ['transcript'], operation: ['getTranscript'] } },
+			},
 		],
 	};
 
@@ -69,6 +81,7 @@ export class MeetStream implements INodeType {
 				let method = 'GET';
 				let url = '';
 				let body: Record<string, unknown> | undefined;
+				let qs: Record<string, boolean> | undefined;
 				if (operation === 'createBot') {
 					method = 'POST';
 					url = '/bots/create_bot';
@@ -80,16 +93,17 @@ export class MeetStream implements INodeType {
 					const transcriptId = this.getNodeParameter('transcriptId', itemIndex) as string;
 					if (transcriptId.trim() === '') throw new NodeOperationError(this.getNode(), 'Transcript ID is required', { itemIndex });
 					url = `/transcript/${encodeURIComponent(transcriptId)}/get_transcript`;
+					if (this.getNodeParameter('raw', itemIndex) as boolean) qs = { raw: true };
 				} else {
 					const botIdValue = this.getNodeParameter('botId', itemIndex) as string;
 					if (botIdValue.trim() === '') throw new NodeOperationError(this.getNode(), 'Bot ID is required', { itemIndex });
 					const botId = encodeURIComponent(botIdValue);
-					const endpoints: Record<string, string> = { getBot: 'detail', getRecording: 'get_video', getSummary: 'summary', removeBot: 'remove_bot' };
+					const endpoints: Record<string, string> = { getBot: 'detail', getTranscriptions: 'transcriptions', getRecording: 'get_video', getSummary: 'summary', removeBot: 'remove_bot' };
 					if (!endpoints[operation]) throw new NodeOperationError(this.getNode(), `Unsupported operation: ${operation}`, { itemIndex });
 					url = `/bots/${botId}/${endpoints[operation]}`;
 				}
 				const response = await this.helpers.httpRequestWithAuthentication.call(this, 'meetStreamApi', {
-					method, baseURL: baseUrl, url, body, json: true, timeout: 60_000, allowedDomains: 'api.meetstream.ai',
+					method, baseURL: baseUrl, url, body, qs, json: true, timeout: 60_000, allowedDomains: 'api.meetstream.ai',
 				} as IHttpRequestOptions);
 				returnData.push({ json: response as IDataObject, pairedItem: { item: itemIndex } });
 			} catch (error) {

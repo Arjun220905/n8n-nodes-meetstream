@@ -43,6 +43,11 @@ test('each MeetStream operation sends the documented request shape', async () =>
 			url: '/bots/bot%2Fwith%20spaces/detail',
 		},
 		{
+			parameters: { operation: 'getTranscriptions', botId: 'bot/with spaces' },
+			method: 'GET',
+			url: '/bots/bot%2Fwith%20spaces/transcriptions',
+		},
+		{
 			parameters: { operation: 'getRecording', botId: 'bot/with spaces' },
 			method: 'GET',
 			url: '/bots/bot%2Fwith%20spaces/get_video',
@@ -58,9 +63,10 @@ test('each MeetStream operation sends the documented request shape', async () =>
 			url: '/bots/bot%2Fwith%20spaces/remove_bot',
 		},
 		{
-			parameters: { operation: 'getTranscript', transcriptId: 'transcript/with spaces' },
+			parameters: { operation: 'getTranscript', transcriptId: 'transcript/with spaces', raw: true },
 			method: 'GET',
 			url: '/transcript/transcript%2Fwith%20spaces/get_transcript',
+			qs: { raw: true },
 		},
 	];
 
@@ -80,6 +86,7 @@ test('each MeetStream operation sends the documented request shape', async () =>
 		assert.equal(captured.method, expected.method);
 		assert.equal(captured.url, expected.url);
 		assert.deepEqual(captured.body, expected.body);
+		assert.deepEqual(captured.qs, expected.qs);
 	}
 });
 

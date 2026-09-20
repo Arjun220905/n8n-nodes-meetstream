@@ -12,25 +12,37 @@
 		{
 			"parameters": {
 				"mode": "raw",
-				"jsonOutput": "{\n  \"transcript_id\": \"replace-with-a-transcript-id\"\n}"
+				"jsonOutput": "{\n  \"bot_id\": \"replace-with-a-post-call-bot-id\"\n}"
 			},
-			"id": "transcript-id-input",
-			"name": "Set transcript ID",
+			"id": "bot-id-input",
+			"name": "Set post-call bot ID",
 			"type": "n8n-nodes-base.set",
 			"typeVersion": 3.4,
 			"position": [480, 300]
 		},
 		{
 			"parameters": {
+				"resource": "bot",
+				"operation": "getTranscriptions",
+				"botId": "={{$json.bot_id}}"
+			},
+			"id": "get-transcriptions",
+			"name": "MeetStream: Get transcriptions",
+			"type": "n8n-nodes-meetstream.meetStream",
+			"typeVersion": 1,
+			"position": [720, 300]
+		},
+		{
+			"parameters": {
 				"resource": "transcript",
 				"operation": "getTranscript",
-				"transcriptId": "={{$json.transcript_id}}"
+				"transcriptId": "={{$json.transcriptions[0].transcript_id}}"
 			},
 			"id": "get-transcript",
 			"name": "MeetStream: Get transcript",
 			"type": "n8n-nodes-meetstream.meetStream",
 			"typeVersion": 1,
-			"position": [720, 300]
+			"position": [960, 300]
 		},
 		{
 			"parameters": {},
@@ -38,12 +50,15 @@
 			"name": "CRM handoff (configure)",
 			"type": "n8n-nodes-base.noOp",
 			"typeVersion": 1,
-			"position": [980, 300]
+			"position": [1200, 300]
 		}
 	],
 	"connections": {
-		"Meeting ended": { "main": [[{ "node": "Set transcript ID", "type": "main", "index": 0 }]] },
-		"Set transcript ID": {
+		"Meeting ended": { "main": [[{ "node": "Set post-call bot ID", "type": "main", "index": 0 }]] },
+		"Set post-call bot ID": {
+			"main": [[{ "node": "MeetStream: Get transcriptions", "type": "main", "index": 0 }]]
+		},
+		"MeetStream: Get transcriptions": {
 			"main": [[{ "node": "MeetStream: Get transcript", "type": "main", "index": 0 }]]
 		},
 		"MeetStream: Get transcript": {

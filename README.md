@@ -12,10 +12,13 @@ Create a MeetStream credential with an API key from [app.meetstream.ai/api-key](
 
 - **Bot → Create Bot**: send a bot to an HTTPS meeting link.
 - **Bot → Get Bot**: retrieve bot details, including `transcript_id` when available.
+- **Bot → Get Transcriptions**: list post-call transcription runs and their `transcript_id` values.
 - **Bot → Get Recording**: retrieve processed video.
 - **Bot → Get Summary**: retrieve the AI meeting summary.
 - **Bot → Leave Meeting**: make the bot leave while retaining data.
-- **Transcript → Get Transcript**: retrieve a transcript by `transcript_id`.
+- **Transcript → Get Transcript**: retrieve a formatted transcript by `transcript_id`, or select **Raw Response** for the provider payload.
+
+For post-call providers, first use **Get Transcriptions**, then map its `transcript_id` into **Get Transcript**. Bots configured with MeetStream's `meeting_captions` provider deliberately return no `transcript_id`; use the caption artifact exposed by **Get Bot** instead. Similarly, **Get Summary** returns a 404 until MeetStream has generated a summary for that bot.
 
 Requests are restricted to `https://api.meetstream.ai`, use a 60-second timeout, and rely on n8n's retry-on-fail controls for rate-limit backoff. The node never logs API keys.
 
@@ -47,7 +50,7 @@ If this repository is transferred to `meetstream-ai`, update the `repository.url
 
 ## Workflow blueprints
 
-The `templates/` directory contains five importable starting points covering calendar auto-join, CRM transcript capture, transcript-to-LLM summarisation, post-meeting recap, and customer storage delivery. Each blueprint begins with an editable **Set** node so it can be tested safely, then should be replaced with a customer-specific trigger or input item that supplies its meeting link, bot ID, or transcript ID. MeetStream does not yet provide an n8n trigger node, so the transcript-to-LLM flow is not real-time until it is driven by a MeetStream webhook or a bounded polling workflow.
+The `templates/` directory contains five importable starting points covering calendar auto-join, CRM transcript capture, transcript-to-LLM summarisation, post-meeting recap, and customer storage delivery. Each blueprint begins with an editable **Set** node so it can be tested safely, then should be replaced with a customer-specific trigger or input item that supplies its meeting link, bot ID, or transcript ID. For post-call transcription templates, insert **Get Transcriptions** before **Get Transcript** to resolve the ID; `meeting_captions` bots use their caption artifact instead. This node has no trigger/webhook listener, so the LLM blueprint is intentionally post-call rather than a real-time transcript integration.
 
 ## Support
 
