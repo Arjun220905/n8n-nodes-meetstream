@@ -22,7 +22,7 @@ export class MeetStream implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'MeetStream',
 		name: 'meetStream',
-		icon: 'file:meetstream.svg',
+		icon: { light: 'file:meetstream.svg', dark: 'file:meetstream-dark.svg' },
 		group: ['transform'],
 		version: 1,
 		description: 'Create and retrieve MeetStream meeting-bot artifacts',
@@ -73,13 +73,19 @@ export class MeetStream implements INodeType {
 					method = 'POST';
 					url = '/bots/create_bot';
 					const meetingLink = this.getNodeParameter('meetingLink', itemIndex) as string;
+					if (meetingLink.trim() === '') throw new NodeOperationError(this.getNode(), 'Meeting Link is required', { itemIndex });
 					if (!isHttpsUrl(meetingLink)) throw new NodeOperationError(this.getNode(), 'Meeting Link must be a valid HTTPS URL', { itemIndex });
 					body = { meeting_link: meetingLink, bot_name: this.getNodeParameter('botName', itemIndex) };
 				} else if (operation === 'getTranscript') {
-					url = `/transcript/${encodeURIComponent(this.getNodeParameter('transcriptId', itemIndex) as string)}/get_transcript`;
+					const transcriptId = this.getNodeParameter('transcriptId', itemIndex) as string;
+					if (transcriptId.trim() === '') throw new NodeOperationError(this.getNode(), 'Transcript ID is required', { itemIndex });
+					url = `/transcript/${encodeURIComponent(transcriptId)}/get_transcript`;
 				} else {
-					const botId = encodeURIComponent(this.getNodeParameter('botId', itemIndex) as string);
+					const botIdValue = this.getNodeParameter('botId', itemIndex) as string;
+					if (botIdValue.trim() === '') throw new NodeOperationError(this.getNode(), 'Bot ID is required', { itemIndex });
+					const botId = encodeURIComponent(botIdValue);
 					const endpoints: Record<string, string> = { getBot: 'detail', getRecording: 'get_video', getSummary: 'summary', removeBot: 'remove_bot' };
+					if (!endpoints[operation]) throw new NodeOperationError(this.getNode(), `Unsupported operation: ${operation}`, { itemIndex });
 					url = `/bots/${botId}/${endpoints[operation]}`;
 				}
 				const response = await this.helpers.httpRequestWithAuthentication.call(this, 'meetStreamApi', {

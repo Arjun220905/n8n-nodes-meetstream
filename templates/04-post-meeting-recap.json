@@ -1,1 +1,50 @@
-{"name":"MeetStream — Post-meeting recap","nodes":[{"parameters":{},"id":"meeting-ended","name":"Meeting ended","type":"n8n-nodes-base.manualTrigger","typeVersion":1,"position":[260,300]},{"parameters":{"resource":"bot","operation":"getSummary","botId":"={{$json.bot_id}}"},"id":"get-summary","name":"MeetStream: Get summary","type":"n8n-nodes-meetstream.meetStream","typeVersion":1,"position":[520,300]},{"parameters":{},"id":"delivery","name":"Email or chat delivery (configure)","type":"n8n-nodes-base.noOp","typeVersion":1,"position":[780,300]}],"connections":{"Meeting ended":{"main":[[{"node":"MeetStream: Get summary","type":"main","index":0}]]},"MeetStream: Get summary":{"main":[[{"node":"Email or chat delivery (configure)","type":"main","index":0}]]}},"active":false,"settings":{"executionOrder":"v1"},"meta":{"templateCredsSetupCompleted":false}}
+{
+	"name": "MeetStream — Post-meeting recap starter",
+	"nodes": [
+		{
+			"parameters": {},
+			"id": "meeting-ended",
+			"name": "Meeting ended",
+			"type": "n8n-nodes-base.manualTrigger",
+			"typeVersion": 1,
+			"position": [260, 300]
+		},
+		{
+			"parameters": {
+				"mode": "raw",
+				"jsonOutput": "{\n  \"bot_id\": \"replace-with-a-bot-id\"\n}"
+			},
+			"id": "set-bot-id",
+			"name": "Set bot ID",
+			"type": "n8n-nodes-base.set",
+			"typeVersion": 3.4,
+			"position": [480, 300]
+		},
+		{
+			"parameters": { "resource": "bot", "operation": "getSummary", "botId": "={{$json.bot_id}}" },
+			"id": "get-summary",
+			"name": "MeetStream: Get summary",
+			"type": "n8n-nodes-meetstream.meetStream",
+			"typeVersion": 1,
+			"position": [720, 300]
+		},
+		{
+			"parameters": {},
+			"id": "delivery",
+			"name": "Email or chat delivery (configure)",
+			"type": "n8n-nodes-base.noOp",
+			"typeVersion": 1,
+			"position": [980, 300]
+		}
+	],
+	"connections": {
+		"Meeting ended": { "main": [[{ "node": "Set bot ID", "type": "main", "index": 0 }]] },
+		"Set bot ID": { "main": [[{ "node": "MeetStream: Get summary", "type": "main", "index": 0 }]] },
+		"MeetStream: Get summary": {
+			"main": [[{ "node": "Email or chat delivery (configure)", "type": "main", "index": 0 }]]
+		}
+	},
+	"active": false,
+	"settings": { "executionOrder": "v1" },
+	"meta": { "templateCredsSetupCompleted": false }
+}

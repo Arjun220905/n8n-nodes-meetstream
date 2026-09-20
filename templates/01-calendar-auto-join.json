@@ -1,1 +1,46 @@
-{"name":"MeetStream — Calendar auto-join","nodes":[{"parameters":{},"id":"calendar-trigger","name":"Calendar event","type":"n8n-nodes-base.manualTrigger","typeVersion":1,"position":[260,300]},{"parameters":{"resource":"bot","operation":"createBot","meetingLink":"={{$json.meetingLink}}","botName":"MeetStream Notetaker"},"id":"create-bot","name":"MeetStream: Create bot","type":"n8n-nodes-meetstream.meetStream","typeVersion":1,"position":[520,300]}],"connections":{"Calendar event":{"main":[[{"node":"MeetStream: Create bot","type":"main","index":0}]]}},"active":false,"settings":{"executionOrder":"v1"},"meta":{"templateCredsSetupCompleted":false}}
+{
+	"name": "MeetStream — Calendar auto-join starter",
+	"nodes": [
+		{
+			"parameters": {},
+			"id": "calendar-trigger",
+			"name": "Calendar event",
+			"type": "n8n-nodes-base.manualTrigger",
+			"typeVersion": 1,
+			"position": [260, 300]
+		},
+		{
+			"parameters": {
+				"mode": "raw",
+				"jsonOutput": "{\n  \"meetingLink\": \"https://replace-with-your-meeting-link\"\n}"
+			},
+			"id": "meeting-link-input",
+			"name": "Set meeting link",
+			"type": "n8n-nodes-base.set",
+			"typeVersion": 3.4,
+			"position": [480, 300]
+		},
+		{
+			"parameters": {
+				"resource": "bot",
+				"operation": "createBot",
+				"meetingLink": "={{$json.meetingLink}}",
+				"botName": "MeetStream Notetaker"
+			},
+			"id": "create-bot",
+			"name": "MeetStream: Create bot",
+			"type": "n8n-nodes-meetstream.meetStream",
+			"typeVersion": 1,
+			"position": [720, 300]
+		}
+	],
+	"connections": {
+		"Calendar event": { "main": [[{ "node": "Set meeting link", "type": "main", "index": 0 }]] },
+		"Set meeting link": {
+			"main": [[{ "node": "MeetStream: Create bot", "type": "main", "index": 0 }]]
+		}
+	},
+	"active": false,
+	"settings": { "executionOrder": "v1" },
+	"meta": { "templateCredsSetupCompleted": false }
+}

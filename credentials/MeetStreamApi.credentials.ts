@@ -9,7 +9,10 @@ import type {
 export class MeetStreamApi implements ICredentialType {
 	name = 'meetStreamApi';
 	displayName = 'MeetStream API';
-	icon: Icon = 'file:../nodes/MeetStream/meetstream.svg';
+	icon: Icon = {
+		light: 'file:../nodes/MeetStream/meetstream.svg',
+		dark: 'file:../nodes/MeetStream/meetstream-dark.svg',
+	};
 	documentationUrl = 'https://docs.meetstream.ai';
 
 	properties: INodeProperties[] = [

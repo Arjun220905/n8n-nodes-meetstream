@@ -1,1 +1,56 @@
-{"name":"MeetStream — Transcript to CRM","nodes":[{"parameters":{},"id":"meeting-ended","name":"Meeting ended","type":"n8n-nodes-base.manualTrigger","typeVersion":1,"position":[260,300]},{"parameters":{"resource":"transcript","operation":"getTranscript","transcriptId":"={{$json.transcript_id}}"},"id":"get-transcript","name":"MeetStream: Get transcript","type":"n8n-nodes-meetstream.meetStream","typeVersion":1,"position":[520,300]},{"parameters":{},"id":"crm-handoff","name":"CRM handoff (configure)","type":"n8n-nodes-base.noOp","typeVersion":1,"position":[780,300]}],"connections":{"Meeting ended":{"main":[[{"node":"MeetStream: Get transcript","type":"main","index":0}]]},"MeetStream: Get transcript":{"main":[[{"node":"CRM handoff (configure)","type":"main","index":0}]]}},"active":false,"settings":{"executionOrder":"v1"},"meta":{"templateCredsSetupCompleted":false}}
+{
+	"name": "MeetStream — Transcript to CRM starter",
+	"nodes": [
+		{
+			"parameters": {},
+			"id": "meeting-ended",
+			"name": "Meeting ended",
+			"type": "n8n-nodes-base.manualTrigger",
+			"typeVersion": 1,
+			"position": [260, 300]
+		},
+		{
+			"parameters": {
+				"mode": "raw",
+				"jsonOutput": "{\n  \"transcript_id\": \"replace-with-a-transcript-id\"\n}"
+			},
+			"id": "transcript-id-input",
+			"name": "Set transcript ID",
+			"type": "n8n-nodes-base.set",
+			"typeVersion": 3.4,
+			"position": [480, 300]
+		},
+		{
+			"parameters": {
+				"resource": "transcript",
+				"operation": "getTranscript",
+				"transcriptId": "={{$json.transcript_id}}"
+			},
+			"id": "get-transcript",
+			"name": "MeetStream: Get transcript",
+			"type": "n8n-nodes-meetstream.meetStream",
+			"typeVersion": 1,
+			"position": [720, 300]
+		},
+		{
+			"parameters": {},
+			"id": "crm-handoff",
+			"name": "CRM handoff (configure)",
+			"type": "n8n-nodes-base.noOp",
+			"typeVersion": 1,
+			"position": [980, 300]
+		}
+	],
+	"connections": {
+		"Meeting ended": { "main": [[{ "node": "Set transcript ID", "type": "main", "index": 0 }]] },
+		"Set transcript ID": {
+			"main": [[{ "node": "MeetStream: Get transcript", "type": "main", "index": 0 }]]
+		},
+		"MeetStream: Get transcript": {
+			"main": [[{ "node": "CRM handoff (configure)", "type": "main", "index": 0 }]]
+		}
+	},
+	"active": false,
+	"settings": { "executionOrder": "v1" },
+	"meta": { "templateCredsSetupCompleted": false }
+}
