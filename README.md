@@ -24,6 +24,8 @@ Requests are restricted to `https://api.meetstream.ai`, use a 60-second timeout,
 
 ## Development and local runtime test
 
+For a beginner-friendly VS Code walkthrough, see [quickstart.md](quickstart.md).
+
 Use Node.js 24 or newer. The current n8n runtime requires Node.js 24+.
 
 ```bash
