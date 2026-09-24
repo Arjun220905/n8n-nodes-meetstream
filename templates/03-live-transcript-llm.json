@@ -3,12 +3,12 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## START HERE — 5 steps\n1. Open **Create live transcription bot** → Credential → **Create New Credential**. Paste the API key from `app.meetstream.ai/api-key`, test it, and save.\n2. Open **Summarize live turn** and connect OpenAI (or n8n Gateway credits when available).\n3. Activate this workflow, then copy the live webhook's **Production URL**.\n4. Paste that URL and a meeting you own into **Configure meeting and production webhook**. The URL must be public HTTPS; localhost needs a tunnel.\n5. Execute the manual branch once to send the bot.\n\nOnly final speaker turns reach OpenAI. Credentials are intentionally never stored in templates. Rate-limit and verify public webhooks at a gateway.",
+        "content": "## START HERE\n1. Open **Create live transcription bot** → select your saved **MeetStream account**.\n2. Open **Summarize live turn** → connect OpenAI.\n3. Click **Publish**, then open **Receive live transcript chunks** and copy its **Production URL**.\n4. Open **Configure meeting and production webhook** → paste that URL and a meeting link you own.\n5. Click **Test workflow** to send the bot.\n\nA local `localhost` URL cannot receive MeetStream webhooks; use a public n8n URL or HTTPS tunnel.\n\n**Result:** each final speaker turn is summarized by OpenAI.",
         "height": 410,
         "width": 720
       },
       "id": "ecae655c-129d-46ae-b02c-9f34897f26cf",
-      "name": "START HERE — connect credentials",
+      "name": "START HERE",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [180, -100]

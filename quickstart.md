@@ -2,6 +2,18 @@
 
 This guide shows how to run and manually test the MeetStream n8n node from VS Code on macOS.
 
+## I already saved the MeetStream API key — what next?
+
+Use the open n8n window:
+
+1. Import `.local/templates/01-calendar-auto-join.json`.
+2. Open **Create MeetStream bot** and select your saved **MeetStream account** credential. n8n may select it automatically.
+3. Open **When a calendar event starts**, connect Google Calendar, and choose your calendar.
+4. Create a calendar event that starts soon and contains a Google Meet, Zoom, or Teams link.
+5. Click **Test workflow**. When it works, click **Publish** so it runs automatically.
+
+That is the simplest end-to-end test. Use the other templates only after this one works. Each imported template has a large **START HERE** note with its remaining setup steps.
+
 ## 1. Install the prerequisites
 
 Install these once:
@@ -115,7 +127,7 @@ Do not commit real meeting links, bot IDs, signed recording URLs, transcripts, o
 
 ## 8. Import a workflow template
 
-For the local development server, import from `.local/templates/`, not `templates/`. The development CLI registers the node as `CUSTOM.meetStream`; the generated files account for that automatically. Start with the large **START HERE** note, connect the requested credentials, and replace the clearly marked calendar, channel, bucket, webhook, or meeting values.
+For the local development server, import from `.local/templates/`, not `templates/`. The development CLI registers the node as `CUSTOM.meetStream`; the generated files account for that automatically. Start with the large **START HERE** note and select the MeetStream credential you already saved.
 
 The five files in `templates/` deliberately use the published node type and are the versions submitted to the n8n template library. Import those only after the npm package is installed. If you import one into `npm run dev`, n8n will show `Unrecognized node type: n8n-nodes-meetstream.meetStream` even though the development node itself is loaded.
 

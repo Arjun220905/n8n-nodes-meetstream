@@ -46,7 +46,7 @@ test('workflow templates are complete, connected, and use concrete integrations'
 		'02-transcript-to-crm.json': ['n8n-nodes-base.webhook', 'n8n-nodes-base.hubspot'],
 		'03-live-transcript-llm.json': ['n8n-nodes-base.webhook', '@n8n/n8n-nodes-langchain.openAi'],
 		'04-post-meeting-recap.json': [
-			'n8n-nodes-base.webhook', '@n8n/n8n-nodes-langchain.openAi', 'n8n-nodes-base.slack',
+			'n8n-nodes-base.webhook', '@n8n/n8n-nodes-langchain.openAi', 'n8n-nodes-base.emailSend',
 		],
 		'05-recording-to-storage.json': [
 			'n8n-nodes-base.webhook', 'n8n-nodes-base.httpRequest', 'n8n-nodes-base.awsS3',
@@ -58,6 +58,7 @@ test('workflow templates are complete, connected, and use concrete integrations'
 		const workflow = JSON.parse(await readFile(new URL(`../templates/${name}`, import.meta.url)));
 		const nodeNames = new Set(workflow.nodes.map((node) => node.name));
 		const nodeTypes = new Set(workflow.nodes.map((node) => node.type));
+		const setupNote = workflow.nodes.find((node) => node.type === 'n8n-nodes-base.stickyNote');
 		assert.equal(workflow.settings?.executionOrder, 'v1');
 			assert.ok(
 				workflow.nodes.some((node) => node.type === 'n8n-nodes-meetstream.meetStream'),
@@ -67,6 +68,8 @@ test('workflow templates are complete, connected, and use concrete integrations'
 				workflow.nodes.some((node) => node.type === 'n8n-nodes-base.stickyNote'),
 				`${name} must explain setup inside the imported workflow`,
 			);
+		assert.match(setupNote.parameters.content, /saved \*\*MeetStream account\*\*/);
+		assert.doesNotMatch(setupNote.parameters.content, /Create New Credential/);
 		assert.ok(!nodeTypes.has('n8n-nodes-base.noOp'), `${name} must not contain placeholder No Operation nodes`);
 		for (const type of requiredTypes[name]) assert.ok(nodeTypes.has(type), `${name} must contain ${type}`);
 		for (const node of workflow.nodes) {
@@ -112,10 +115,16 @@ test('templates model MeetStream event and artifact semantics correctly', async 
 	assert.match(JSON.stringify(live), /end_of_turn/);
 
 	const recap = await readFile(new URL('../templates/04-post-meeting-recap.json', import.meta.url), 'utf8');
+	const recapWorkflow = JSON.parse(recap);
+	const emailNode = recapWorkflow.nodes.find((node) => node.type === 'n8n-nodes-base.emailSend');
 	assert.match(recap, /transcription\.processed/);
 	assert.match(recap, /Get transcript/);
 	assert.match(recap, /Summarize completed meeting/);
+	assert.match(recap, /Email meeting recap/);
+	assert.doesNotMatch(recap, /Slack|n8n-nodes-base\.slack/i);
 	assert.doesNotMatch(recap, /getSummary/);
+	assert.equal(emailNode.parameters.operation, 'send');
+	assert.equal(emailNode.parameters.emailFormat, 'text');
 
 	const storage = await readFile(new URL('../templates/05-recording-to-storage.json', import.meta.url), 'utf8');
 	assert.match(storage, /video\.processed/);

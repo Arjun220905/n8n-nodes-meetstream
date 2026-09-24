@@ -1,14 +1,14 @@
 {
-  "name": "MeetStream — Send post-meeting summaries to Slack",
+  "name": "MeetStream — Email a post-meeting summary",
   "nodes": [
     {
       "parameters": {
-        "content": "## START HERE — 4 steps\n1. Open either MeetStream node → Credential → **Create New Credential**. Paste the API key from `app.meetstream.ai/api-key`, test it, and save; reuse it on the other MeetStream node.\n2. Open **Summarize completed meeting** and connect OpenAI (or n8n Gateway credits when available).\n3. Open **Post recap to Slack**, connect Slack, and choose a channel.\n4. Activate this workflow and register the webhook's **Production URL** for `transcription.processed` in a signed MeetStream workspace webhook.\n\nCredentials are intentionally never stored in templates. This workflow builds the summary from the completed transcript, so it does not depend on a separately configured MeetStream summary workflow. Verify signatures and rate-limit at a gateway.",
+        "content": "## START HERE\n1. Open both MeetStream nodes → select your saved **MeetStream account**.\n2. Open **Summarize completed meeting** → connect OpenAI.\n3. Open **Email meeting recap** → connect your email account → enter the From and To addresses.\n4. Open **MeetStream transcript webhook** → copy its **Production URL**.\n5. In MeetStream, create a workspace webhook for `transcription.processed`, paste that URL, then click **Publish** here.\n\n**Result:** after a meeting is transcribed, a short recap is emailed automatically.",
         "height": 420,
         "width": 720
       },
       "id": "e476a536-ed9a-47ca-81c0-d4feec8e48a6",
-      "name": "START HERE — connect credentials",
+      "name": "START HERE",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [180, -140]
@@ -103,7 +103,7 @@
             {
               "role": "system",
               "type": "text",
-              "content": "Create a concise meeting recap for Slack. Use headings: Summary, Decisions, Action items, and Open questions. Preserve names, owners, dates, and numbers. If a section has no evidence, write None. Do not invent facts."
+              "content": "Create a concise meeting recap for email. Use headings: Summary, Decisions, Action items, and Open questions. Preserve names, owners, dates, and numbers. If a section has no evidence, write None. Do not invent facts."
             },
             {
               "role": "user",
@@ -128,23 +128,21 @@
     },
     {
       "parameters": {
-        "resource": "message",
-        "operation": "post",
-        "select": "channel",
-        "channelId": {
-          "__rl": true,
-          "value": "",
-          "mode": "list",
-          "cachedResultName": "Choose a Slack channel"
-        },
-        "messageType": "text",
-        "text": "=:memo: *MeetStream meeting recap*\n*Bot:* {{ $('Accept successful transcript event').item.json.bot_id }}\n\n{{ $json.content }}",
-        "otherOptions": {}
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "you@example.com",
+        "toEmail": "you@example.com",
+        "subject": "=MeetStream meeting recap — {{ $('Accept successful transcript event').item.json.bot_id }}",
+        "emailFormat": "text",
+        "text": "=MeetStream meeting recap\n\n{{ $json.content }}",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "cc103e3d-ff5f-4ad1-af50-d2350676d551",
-      "name": "Post recap to Slack",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.4,
+      "name": "Email meeting recap",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [1930, 340],
       "retryOnFail": true,
       "maxTries": 3,
@@ -158,7 +156,7 @@
     "Select latest successful transcript": { "main": [[{ "node": "Get transcript", "type": "main", "index": 0 }]] },
     "Get transcript": { "main": [[{ "node": "Prepare transcript for summary", "type": "main", "index": 0 }]] },
     "Prepare transcript for summary": { "main": [[{ "node": "Summarize completed meeting", "type": "main", "index": 0 }]] },
-    "Summarize completed meeting": { "main": [[{ "node": "Post recap to Slack", "type": "main", "index": 0 }]] }
+    "Summarize completed meeting": { "main": [[{ "node": "Email meeting recap", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" }
 }

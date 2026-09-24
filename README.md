@@ -61,7 +61,7 @@ The `templates/` directory contains five complete, importable workflows:
 1. Google Calendar event start → extract the meeting URL → create one deduplicated MeetStream bot.
 2. `transcription.processed` webhook → resolve and format the transcript → create a HubSpot meeting engagement.
 3. Create a streaming bot and receive finalized live turns → OpenAI summarisation.
-4. `transcription.processed` webhook → fetch the transcript → summarize it with OpenAI → post it to Slack.
+4. `transcription.processed` webhook → fetch the transcript → summarize it with OpenAI → send it by email.
 5. `video.processed` webhook → fetch a fresh presigned URL → download the file → upload it to Amazon S3.
 
 They intentionally contain no credentials or customer data. After import, connect the credentials and destination named in [templates/README.md](templates/README.md). Webhook workflows use n8n's immediate response mode so MeetStream gets a fast 2xx acknowledgement.

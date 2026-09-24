@@ -3,12 +3,12 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## START HERE — 3 steps\n1. Open **Create MeetStream bot** → Credential → **Create New Credential**. Paste the API key from `app.meetstream.ai/api-key`, test it, and save.\n2. Open **When a calendar event starts**, connect Google Calendar, and choose a calendar.\n3. Activate the workflow.\n\nCredentials are intentionally never stored in template files. The event ID + occurrence time prevent duplicate bots when n8n retries.",
+        "content": "## START HERE\nAlready saved your MeetStream API key? Use the saved **MeetStream account** credential below.\n\n1. Open **When a calendar event starts** → connect Google Calendar → choose your calendar.\n2. Open **Create MeetStream bot** → select **MeetStream account**.\n3. Test with a calendar event that starts soon and contains a Google Meet, Zoom, or Teams link.\n4. When the test works, click **Publish**.\n\n**Result:** MeetStream automatically joins supported calendar meetings when they start.",
         "height": 300,
         "width": 620
       },
       "id": "ba25c54b-1f0f-47dd-8f24-70897750d40f",
-      "name": "START HERE — connect credentials",
+      "name": "START HERE",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [180, 20]

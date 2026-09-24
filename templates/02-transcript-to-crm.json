@@ -3,12 +3,12 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## START HERE — 4 steps\n1. Open either MeetStream node → Credential → **Create New Credential**. Paste the API key from `app.meetstream.ai/api-key`, test it, and save; reuse it on the other MeetStream node.\n2. Open **Create HubSpot meeting note**, connect HubSpot, and save.\n3. Activate this workflow and copy the webhook's **Production URL** into a signed MeetStream workspace webhook for `transcription.processed`.\n4. When creating a bot, set `custom_attributes.hubspot_contact_id`.\n\nCredentials are intentionally never stored in templates. Verify MeetStream's HMAC signature and rate-limit at a gateway before forwarding to n8n.",
+        "content": "## START HERE\n1. Open both MeetStream nodes → select your saved **MeetStream account**.\n2. Open **Create HubSpot meeting note** → connect HubSpot.\n3. Open **MeetStream transcription webhook** → copy its **Production URL**.\n4. In MeetStream, create a workspace webhook for `transcription.processed` and paste that URL.\n5. Click **Publish**.\n\nThe bot must include `custom_attributes.hubspot_contact_id` so the note is attached to the right contact.\n\n**Result:** each completed transcript becomes a HubSpot meeting note.",
         "height": 380,
         "width": 700
       },
       "id": "68d45a90-9f39-4147-9074-8e19aa58b84f",
-      "name": "START HERE — connect credentials",
+      "name": "START HERE",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [180, 20]
