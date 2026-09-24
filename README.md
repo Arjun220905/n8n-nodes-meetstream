@@ -26,7 +26,7 @@ Lifecycle callbacks and live transcripts are different MeetStream channels: **Li
 
 For a beginner-friendly VS Code walkthrough, see [quickstart.md](quickstart.md).
 
-Use Node.js 24 or newer. The current n8n runtime requires Node.js 24+.
+Use Node.js 24 or newer. The current n8n 2.40 runtime and its native expression sandbox require Node 24+.
 
 ```bash
 npm ci
@@ -36,7 +36,9 @@ npm test
 npm run dev
 ```
 
-`npm run dev` starts a local n8n instance with this node loaded. Open `http://localhost:5678`, create a MeetStream credential, then first run **Bot → Get Bot** against an existing bot ID. Use a meeting you own for any **Create Bot** test and call **Leave Meeting** afterwards.
+`npm run dev` starts a local n8n instance with this node loaded and prepares development-compatible workflow files in `.local/templates/`. Open `http://localhost:5678`, create a MeetStream credential, then first run **Bot → Get Bot** against an existing bot ID. Use a meeting you own for any **Create Bot** test and call **Leave Meeting** afterwards.
+
+The development CLI registers the node as `CUSTOM.meetStream`; published packages use `n8n-nodes-meetstream.meetStream`. For local testing, import `.local/templates/*.json`. The five files in `templates/` retain the published type required by the n8n template library.
 
 ## Release and n8n verification
 
@@ -59,7 +61,7 @@ The `templates/` directory contains five complete, importable workflows:
 1. Google Calendar event start → extract the meeting URL → create one deduplicated MeetStream bot.
 2. `transcription.processed` webhook → resolve and format the transcript → create a HubSpot meeting engagement.
 3. Create a streaming bot and receive finalized live turns → OpenAI summarisation.
-4. `bot.done` webhook → fetch the MeetStream summary → post it to Slack.
+4. `transcription.processed` webhook → fetch the transcript → summarize it with OpenAI → post it to Slack.
 5. `video.processed` webhook → fetch a fresh presigned URL → download the file → upload it to Amazon S3.
 
 They intentionally contain no credentials or customer data. After import, connect the credentials and destination named in [templates/README.md](templates/README.md). Webhook workflows use n8n's immediate response mode so MeetStream gets a fast 2xx acknowledgement.

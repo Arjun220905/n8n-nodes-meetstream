@@ -21,8 +21,10 @@
 	"scripts": {
 		"build": "n8n-node build",
 		"build:watch": "tsc --watch",
+		"predev": "npm run templates:local",
 		"test": "npm run build && node --test",
 		"dev": "n8n-node dev",
+		"templates:local": "node scripts/prepare-local-templates.mjs",
 		"lint": "n8n-node lint",
 		"lint:fix": "n8n-node lint --fix",
 		"release": "n8n-node release",

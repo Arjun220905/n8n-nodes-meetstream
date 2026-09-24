@@ -16,14 +16,14 @@ Check your Node version in Terminal:
 node --version
 ```
 
-The output must be `v24.x` or newer. If you use Homebrew, you can install Node 24 with:
+The output must be `v24.x` or newer. n8n 2.40.6 requires Node 24; Node `v22.23.2` can build this node but cannot reliably start the current n8n runtime. Node 24 is already installed on this Mac at `/opt/homebrew/opt/node@24`.
 
 ```bash
 brew install node@24
 export PATH="/opt/homebrew/opt/node@24/bin:$PATH"
 ```
 
-If you use `nvm` or `fnm`, select your Node 24 installation instead.
+If you use `nvm` or `fnm`, select Node 24 instead. Verify the same VS Code terminal prints `v24.x` before running `npm ci` or `npm run dev`.
 
 ## 2. Open the repository in VS Code
 
@@ -69,7 +69,9 @@ In the same terminal, run:
 npm run dev
 ```
 
-Leave this terminal running. Open [http://localhost:5678](http://localhost:5678) in your browser. The n8n development server loads the TypeScript node from this repository.
+Leave this terminal running. Open [http://localhost:5678](http://localhost:5678) in your browser. The n8n development server loads the TypeScript node from this repository. The `predev` step also creates five development-compatible workflows in `.local/templates/`.
+
+If the terminal says port 5678 is already in use, an n8n server is already running. Use that server if it came from this repository, or stop it with `Ctrl+C` in the terminal where it was started before running `npm run dev` again.
 
 To stop it later, focus the terminal and press `Ctrl+C`.
 
@@ -79,7 +81,7 @@ In local n8n:
 
 1. Create or sign in to the local owner account if prompted.
 2. Create a workflow and add the **MeetStream** node.
-3. In the node’s **Credential** field, choose **Create New Credential**.
+3. In the node’s **Credential to connect with** field, choose **Create New Credential**.
 4. Paste your MeetStream API key into the API key field.
 5. Save the credential and use n8n’s **Test** button if shown.
 
@@ -113,7 +115,9 @@ Do not commit real meeting links, bot IDs, signed recording URLs, transcripts, o
 
 ## 8. Import a workflow template
 
-The five templates are in `templates/`. In n8n, use **Import from File** and select one JSON file. Then connect the credentials and replace the clearly marked host, calendar, channel, bucket, or meeting values. Read [templates/README.md](templates/README.md) for the exact setup for each workflow.
+For the local development server, import from `.local/templates/`, not `templates/`. The development CLI registers the node as `CUSTOM.meetStream`; the generated files account for that automatically. Start with the large **START HERE** note, connect the requested credentials, and replace the clearly marked calendar, channel, bucket, webhook, or meeting values.
+
+The five files in `templates/` deliberately use the published node type and are the versions submitted to the n8n template library. Import those only after the npm package is installed. If you import one into `npm run dev`, n8n will show `Unrecognized node type: n8n-nodes-meetstream.meetStream` even though the development node itself is loaded.
 
 For webhook templates, activate the workflow and use its **Production URL**, not its temporary test URL. A local n8n server needs a public HTTPS tunnel for MeetStream to reach it. The live-transcript template contains two branches: run the manual branch once to create the bot, while the active webhook branch receives final speaker turns and sends them to OpenAI.
 
@@ -130,7 +134,7 @@ Test these cases before publishing changes:
 - A top-level transcript array is wrapped as `{ "data": [...] }`.
 - n8n’s **Continue On Fail** option returns an error item instead of stopping the entire workflow.
 
-After changing source code, stop and restart `npm run dev`, then rerun `npm run lint` and `npm test`.
+Node source changes hot-rebuild while `npm run dev` is running. After changing templates, rerun `npm run templates:local` and re-import the generated workflow. Before finishing any change, rerun `npm run lint` and `npm test`.
 
 ## 10. Before opening a pull request
 

@@ -20,6 +20,15 @@ test('package metadata exposes the MeetStream node and credential', () => {
 	assert.equal(pkg.engines.node, '>=24');
 });
 
+test('local template generator adapts the package node type used by n8n-node dev', async () => {
+	const script = await readFile(
+		new URL('../scripts/prepare-local-templates.mjs', import.meta.url),
+		'utf8',
+	);
+	assert.match(script, /n8n-nodes-meetstream\.meetStream/);
+	assert.match(script, /CUSTOM\.meetStream/);
+});
+
 test('outbound API is pinned and meeting links require HTTPS', () => {
 	assert.match(source, /https:\/\/api\.meetstream\.ai\/api\/v1/);
 	assert.match(source, /allowedDomains: 'api\.meetstream\.ai'/);
@@ -36,7 +45,9 @@ test('workflow templates are complete, connected, and use concrete integrations'
 		'01-calendar-auto-join.json': ['n8n-nodes-base.googleCalendarTrigger', 'n8n-nodes-base.code'],
 		'02-transcript-to-crm.json': ['n8n-nodes-base.webhook', 'n8n-nodes-base.hubspot'],
 		'03-live-transcript-llm.json': ['n8n-nodes-base.webhook', '@n8n/n8n-nodes-langchain.openAi'],
-		'04-post-meeting-recap.json': ['n8n-nodes-base.webhook', 'n8n-nodes-base.slack'],
+		'04-post-meeting-recap.json': [
+			'n8n-nodes-base.webhook', '@n8n/n8n-nodes-langchain.openAi', 'n8n-nodes-base.slack',
+		],
 		'05-recording-to-storage.json': [
 			'n8n-nodes-base.webhook', 'n8n-nodes-base.httpRequest', 'n8n-nodes-base.awsS3',
 		],
@@ -101,7 +112,10 @@ test('templates model MeetStream event and artifact semantics correctly', async 
 	assert.match(JSON.stringify(live), /end_of_turn/);
 
 	const recap = await readFile(new URL('../templates/04-post-meeting-recap.json', import.meta.url), 'utf8');
-	assert.match(recap, /bot\.done/);
+	assert.match(recap, /transcription\.processed/);
+	assert.match(recap, /Get transcript/);
+	assert.match(recap, /Summarize completed meeting/);
+	assert.doesNotMatch(recap, /getSummary/);
 
 	const storage = await readFile(new URL('../templates/05-recording-to-storage.json', import.meta.url), 'utf8');
 	assert.match(storage, /video\.processed/);

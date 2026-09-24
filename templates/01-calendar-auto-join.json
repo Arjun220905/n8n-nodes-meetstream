@@ -3,12 +3,12 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Setup\n1. Connect Google Calendar and MeetStream credentials.\n2. Select a calendar in the trigger.\n3. Activate the workflow.\n\nThe event ID + occurrence time are used for both deduplication and retry safety, so one calendar occurrence creates at most one bot.",
-        "height": 220,
-        "width": 500
+        "content": "## START HERE — 3 steps\n1. Open **Create MeetStream bot** → Credential → **Create New Credential**. Paste the API key from `app.meetstream.ai/api-key`, test it, and save.\n2. Open **When a calendar event starts**, connect Google Calendar, and choose a calendar.\n3. Activate the workflow.\n\nCredentials are intentionally never stored in template files. The event ID + occurrence time prevent duplicate bots when n8n retries.",
+        "height": 300,
+        "width": 620
       },
       "id": "ba25c54b-1f0f-47dd-8f24-70897750d40f",
-      "name": "Setup and behavior",
+      "name": "START HERE — connect credentials",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [180, 20]

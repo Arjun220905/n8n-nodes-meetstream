@@ -3,12 +3,12 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Production setup\nConnect MeetStream + AWS credentials and choose a private bucket. Put this webhook behind a gateway that verifies MeetStream's workspace-webhook signature and rate-limits requests.\n\nThe workflow fetches a fresh one-hour recording URL, downloads it immediately, and stores it at `meetstream/<bot_id>.mp4`.",
-        "height": 250,
-        "width": 560
+        "content": "## START HERE — 4 steps\n1. Open **Get fresh recording URL** → Credential → **Create New Credential**. Paste the API key from `app.meetstream.ai/api-key`, test it, and save.\n2. Open **Upload recording to S3**, connect AWS, and replace the bucket name with a private bucket.\n3. Activate this workflow and register the webhook's **Production URL** for `video.processed` in a signed MeetStream workspace webhook.\n4. Run a recording-enabled bot.\n\nCredentials are intentionally never stored in templates. The one-hour recording URL is fetched and downloaded immediately. Verify signatures and rate-limit at a gateway.",
+        "height": 370,
+        "width": 700
       },
       "id": "5e3a5cf3-a6ee-4381-8cc2-2e5c830a303b",
-      "name": "Production setup",
+      "name": "START HERE — connect credentials",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [160, 20]

@@ -3,76 +3,162 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Production setup\nConnect MeetStream + Slack credentials and select a channel. Put this webhook behind a gateway that verifies MeetStream's workspace-webhook signature and rate-limits requests, then forward only verified POST requests here.\n\n`bot.done` means processing finished; the summary read is retried because availability can still be transient.",
-        "height": 250,
-        "width": 560
+        "content": "## START HERE — 4 steps\n1. Open either MeetStream node → Credential → **Create New Credential**. Paste the API key from `app.meetstream.ai/api-key`, test it, and save; reuse it on the other MeetStream node.\n2. Open **Summarize completed meeting** and connect OpenAI (or n8n Gateway credits when available).\n3. Open **Post recap to Slack**, connect Slack, and choose a channel.\n4. Activate this workflow and register the webhook's **Production URL** for `transcription.processed` in a signed MeetStream workspace webhook.\n\nCredentials are intentionally never stored in templates. This workflow builds the summary from the completed transcript, so it does not depend on a separately configured MeetStream summary workflow. Verify signatures and rate-limit at a gateway.",
+        "height": 420,
+        "width": 720
       },
       "id": "e476a536-ed9a-47ca-81c0-d4feec8e48a6",
-      "name": "Production setup",
+      "name": "START HERE — connect credentials",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [200, 20]
+      "position": [180, -140]
     },
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "meetstream-meeting-done-09c53a6d",
+        "path": "meetstream-summary-ready-09c53a6d",
         "responseMode": "onReceived",
         "options": {}
       },
       "id": "c526080e-9b51-438a-bdac-ccca58b8c3b5",
-      "name": "MeetStream lifecycle webhook",
+      "name": "MeetStream transcript webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [220, 300],
+      "position": [180, 340],
       "webhookId": "09c53a6d-f7a3-4844-9466-f191e2b3455e"
     },
     {
       "parameters": {
-        "jsCode": "const payload = $json.body ?? $json;\nconst event = payload.bot_event ?? payload.event;\nif (event !== 'bot.done') return [];\nif (!payload.bot_id) throw new Error('MeetStream webhook did not include bot_id.');\nreturn [{ json: { ...payload, bot_id: String(payload.bot_id) } }];"
+        "jsCode": "const payload = $json.body ?? $json;\nconst event = payload.bot_event ?? payload.event;\nif (event !== 'transcription.processed' || payload.transcript_status !== 'Success') return [];\nif (!payload.bot_id) throw new Error('MeetStream webhook did not include bot_id.');\nreturn [{ json: { ...payload, bot_id: String(payload.bot_id) } }];"
       },
       "id": "78cce984-b6bc-447f-bf5a-49ae975a8390",
-      "name": "Accept completed meetings",
+      "name": "Accept successful transcript event",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [470, 300]
+      "position": [430, 340]
     },
     {
       "parameters": {
         "resource": "bot",
-        "operation": "getSummary",
+        "operation": "getTranscriptions",
         "botId": "={{ $json.bot_id }}"
       },
       "id": "8e54ce60-87b5-40af-bc9a-90fc0ceff625",
-      "name": "Get meeting summary",
+      "name": "Get transcription runs",
       "type": "n8n-nodes-meetstream.meetStream",
       "typeVersion": 1,
-      "position": [720, 300],
+      "position": [680, 340],
       "retryOnFail": true,
       "maxTries": 5,
       "waitBetweenTries": 10000
     },
     {
       "parameters": {
+        "jsCode": "const runs = Array.isArray($json.transcriptions) ? $json.transcriptions : [];\nconst completed = runs\n  .filter((run) => run.status === 'Success' && run.transcript_id)\n  .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')));\nif (!completed.length) throw new Error('No successful post-call transcription run was returned.');\nreturn [{ json: { transcript_id: completed[0].transcript_id } }];"
+      },
+      "id": "8e9e2289-6ee7-429b-bebf-5f9d64591d72",
+      "name": "Select latest successful transcript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [930, 340]
+    },
+    {
+      "parameters": {
+        "resource": "transcript",
+        "operation": "getTranscript",
+        "transcriptId": "={{ $json.transcript_id }}",
+        "raw": false
+      },
+      "id": "48f17c23-5e04-4a4b-9095-63696d556802",
+      "name": "Get transcript",
+      "type": "n8n-nodes-meetstream.meetStream",
+      "typeVersion": 1,
+      "position": [1180, 340],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 10000
+    },
+    {
+      "parameters": {
+        "jsCode": "const segments = Array.isArray($json.data) ? $json.data : [];\nif (!segments.length) throw new Error('MeetStream returned an empty transcript.');\nconst fullTranscript = segments\n  .map((segment) => `${segment.speaker ?? 'Speaker'}: ${segment.transcript ?? ''}`)\n  .join('\\n');\nconst limit = 60000;\nconst transcript = fullTranscript.length > limit\n  ? `${fullTranscript.slice(0, limit)}\\n\\n[Transcript truncated to ${limit} characters for the summary.]`\n  : fullTranscript;\nreturn [{ json: {\n  bot_id: $('Accept successful transcript event').item.json.bot_id,\n  transcript,\n  transcript_truncated: fullTranscript.length > limit\n} }];"
+      },
+      "id": "dfc6ccea-18c3-44a2-97e6-198bf9330a8e",
+      "name": "Prepare transcript for summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1430, 340]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "response",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "type": "text",
+              "content": "Create a concise meeting recap for Slack. Use headings: Summary, Decisions, Action items, and Open questions. Preserve names, owners, dates, and numbers. If a section has no evidence, write None. Do not invent facts."
+            },
+            {
+              "role": "user",
+              "type": "text",
+              "content": "={{ $json.transcript }}"
+            }
+          ]
+        },
+        "simplify": true,
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "6179ad01-158d-43ab-84a4-b1a4427e42c9",
+      "name": "Summarize completed meeting",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [1680, 340],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
         "resource": "message",
         "operation": "post",
         "select": "channel",
-        "channelId": { "__rl": true, "value": "", "mode": "list", "cachedResultName": "Choose a Slack channel" },
+        "channelId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "Choose a Slack channel"
+        },
         "messageType": "text",
-        "text": "=:memo: *MeetStream meeting recap*\n*Bot:* {{ $('Accept completed meetings').item.json.bot_id }}\n\n{{ $json.summary || $json.meeting_summary || $json.text || JSON.stringify($json, null, 2) }}",
+        "text": "=:memo: *MeetStream meeting recap*\n*Bot:* {{ $('Accept successful transcript event').item.json.bot_id }}\n\n{{ $json.content }}",
         "otherOptions": {}
       },
       "id": "cc103e3d-ff5f-4ad1-af50-d2350676d551",
       "name": "Post recap to Slack",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.4,
-      "position": [980, 300]
+      "position": [1930, 340],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     }
   ],
   "connections": {
-    "MeetStream lifecycle webhook": { "main": [[{ "node": "Accept completed meetings", "type": "main", "index": 0 }]] },
-    "Accept completed meetings": { "main": [[{ "node": "Get meeting summary", "type": "main", "index": 0 }]] },
-    "Get meeting summary": { "main": [[{ "node": "Post recap to Slack", "type": "main", "index": 0 }]] }
+    "MeetStream transcript webhook": { "main": [[{ "node": "Accept successful transcript event", "type": "main", "index": 0 }]] },
+    "Accept successful transcript event": { "main": [[{ "node": "Get transcription runs", "type": "main", "index": 0 }]] },
+    "Get transcription runs": { "main": [[{ "node": "Select latest successful transcript", "type": "main", "index": 0 }]] },
+    "Select latest successful transcript": { "main": [[{ "node": "Get transcript", "type": "main", "index": 0 }]] },
+    "Get transcript": { "main": [[{ "node": "Prepare transcript for summary", "type": "main", "index": 0 }]] },
+    "Prepare transcript for summary": { "main": [[{ "node": "Summarize completed meeting", "type": "main", "index": 0 }]] },
+    "Summarize completed meeting": { "main": [[{ "node": "Post recap to Slack", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" }
 }

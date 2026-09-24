@@ -3,12 +3,12 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Production setup\nConnect MeetStream + OpenAI credentials, activate this workflow, and copy the production webhook URL into the configuration node. Put the webhook behind a gateway with request-size and adaptive rate limits before exposing it publicly.\n\nOnly finalized speaker turns reach OpenAI; interim words are ignored to control cost.",
-        "height": 250,
-        "width": 560
+        "content": "## START HERE — 5 steps\n1. Open **Create live transcription bot** → Credential → **Create New Credential**. Paste the API key from `app.meetstream.ai/api-key`, test it, and save.\n2. Open **Summarize live turn** and connect OpenAI (or n8n Gateway credits when available).\n3. Activate this workflow, then copy the live webhook's **Production URL**.\n4. Paste that URL and a meeting you own into **Configure meeting and production webhook**. The URL must be public HTTPS; localhost needs a tunnel.\n5. Execute the manual branch once to send the bot.\n\nOnly final speaker turns reach OpenAI. Credentials are intentionally never stored in templates. Rate-limit and verify public webhooks at a gateway.",
+        "height": 410,
+        "width": 720
       },
       "id": "ecae655c-129d-46ae-b02c-9f34897f26cf",
-      "name": "Production setup",
+      "name": "START HERE — connect credentials",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [180, -100]
