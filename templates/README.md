@@ -1,6 +1,12 @@
 # MeetStream workflow templates
 
-Import each JSON file with **Workflows → Import from File**. Credentials are deliberately omitted. Select your own credentials after import, review every expression, run with test data, and only then activate the workflow.
+The five JSON files in this directory are the publishable n8n-library versions. Import one with **Workflows → Import from File** after installing the published `n8n-nodes-meetstream` package.
+
+Credentials are deliberately omitted because n8n encrypts credentials separately and template files are public. After import, start with the large **START HERE** note, open each named app node, choose **Create New Credential**, and save it. Never paste an API key into an Edit Fields/Code node or workflow JSON.
+
+### Local development exception
+
+`npm run dev` loads the node as `CUSTOM.meetStream`, while a published package uses `n8n-nodes-meetstream.meetStream`. Importing these publishable files into the development server therefore shows **Unrecognized node type**. Run `npm run templates:local` (also run automatically before `npm run dev`) and import the matching file from `../.local/templates/` instead. Generated local files are ignored by Git and must not be submitted to the n8n template library.
 
 ## 1. Google Calendar auto-join
 
@@ -36,7 +42,7 @@ The webhook acknowledges immediately. Only finalized `end_of_turn` payloads reac
 
 File: `04-post-meeting-recap.json`
 
-Connect MeetStream and Slack credentials, select a Slack channel, activate the workflow, and register its production webhook URL for `bot.done`. The workflow ignores other lifecycle events, fetches the completed MeetStream summary, and posts it to Slack. It retries the summary read because artifact availability and rate limits can be transient.
+Connect MeetStream, OpenAI, and Slack credentials; select a Slack channel; activate the workflow; and register its production webhook URL for `transcription.processed`. The workflow resolves the completed transcript, limits unusually large prompt input, asks OpenAI for a structured recap, and posts the result to Slack. It does not require a separate MeetStream summary workflow to have been configured.
 
 ## 5. Recording to Amazon S3
 

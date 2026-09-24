@@ -3,12 +3,12 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Production setup\nConnect MeetStream + HubSpot credentials and put this webhook behind a gateway that verifies MeetStream's workspace-webhook signature and rate-limits requests. Forward only verified POST requests here. Set `custom_attributes.hubspot_contact_id` when creating each bot.\n\nMeetStream delivery is best-effort, so monitor failed n8n executions and retry them from n8n.",
-        "height": 260,
-        "width": 560
+        "content": "## START HERE — 4 steps\n1. Open either MeetStream node → Credential → **Create New Credential**. Paste the API key from `app.meetstream.ai/api-key`, test it, and save; reuse it on the other MeetStream node.\n2. Open **Create HubSpot meeting note**, connect HubSpot, and save.\n3. Activate this workflow and copy the webhook's **Production URL** into a signed MeetStream workspace webhook for `transcription.processed`.\n4. When creating a bot, set `custom_attributes.hubspot_contact_id`.\n\nCredentials are intentionally never stored in templates. Verify MeetStream's HMAC signature and rate-limit at a gateway before forwarding to n8n.",
+        "height": 380,
+        "width": 700
       },
       "id": "68d45a90-9f39-4147-9074-8e19aa58b84f",
-      "name": "Production setup",
+      "name": "START HERE — connect credentials",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [180, 20]
