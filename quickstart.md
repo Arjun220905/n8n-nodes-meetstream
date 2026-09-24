@@ -98,6 +98,8 @@ A successful result confirms that VS Code, the local n8n server, the credential,
 
 Next, try **Bot → Get Transcriptions** with the same bot ID. This lists post-call transcription runs. If the provider is `meeting_captions`, `transcript_id` is normally `null`; use the caption artifact URL returned by **Get Bot** instead. For a post-call provider that returns a transcript ID, pass that ID to **Transcript → Get Transcript**.
 
+**Get Transcript** returns formatted transcript segments inside `data`, for example `{{$json.data[0].transcript}}`.
+
 Other read-only operations are:
 
 - **Bot → Get Recording**: retrieves the processed recording when available.
@@ -105,15 +107,15 @@ Other read-only operations are:
 
 ## 7. Test bot creation only with your own meeting
 
-**Create Bot** causes a bot to join a real meeting. Use a meeting that you own and can admit, and confirm the meeting link is HTTPS. After testing, use **Bot → Leave Meeting** so the test bot does not remain in the meeting.
+**Create Bot** causes a bot to join a real meeting. Use a meeting that you own and can admit, and confirm the meeting link is HTTPS. Choose **Post-Call** transcription for templates that wait for `transcription.processed`, or **Live Webhook** for streaming chunks. Live transcription requires a public HTTPS webhook URL; `localhost` is not reachable from MeetStream. After testing, use **Bot → Leave Meeting** so the test bot does not remain in the meeting.
 
 Do not commit real meeting links, bot IDs, signed recording URLs, transcripts, or API keys.
 
 ## 8. Import a workflow template
 
-The five starter templates are in `templates/`. In n8n, use **Import from File** and select one JSON file. Then select your MeetStream credential and replace the placeholder Set node values.
+The five templates are in `templates/`. In n8n, use **Import from File** and select one JSON file. Then connect the credentials and replace the clearly marked host, calendar, channel, bucket, or meeting values. Read [templates/README.md](templates/README.md) for the exact setup for each workflow.
 
-The transcript-to-CRM and transcript-to-LLM templates expect a post-call bot ID, list transcription runs, and then resolve the first transcript ID. They are post-call starters; this node does not provide a real-time trigger.
+For webhook templates, activate the workflow and use its **Production URL**, not its temporary test URL. A local n8n server needs a public HTTPS tunnel for MeetStream to reach it. The live-transcript template contains two branches: run the manual branch once to create the bot, while the active webhook branch receives final speaker turns and sends them to OpenAI.
 
 ## 9. Useful manual checks
 
@@ -124,6 +126,8 @@ Test these cases before publishing changes:
 - Blank bot and transcript IDs are rejected before any API request.
 - IDs containing spaces or slashes are encoded safely.
 - **Raw Response** adds `raw=true` to transcript requests.
+- Invalid callback URLs, dates, JSON settings, and deduplication keys fail before an API request.
+- A top-level transcript array is wrapped as `{ "data": [...] }`.
 - n8n’s **Continue On Fail** option returns an error item instead of stopping the entire workflow.
 
 After changing source code, stop and restart `npm run dev`, then rerun `npm run lint` and `npm test`.

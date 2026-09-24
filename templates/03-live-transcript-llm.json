@@ -1,71 +1,123 @@
 {
-	"name": "MeetStream — Post-call transcript to LLM starter",
-	"nodes": [
-		{
-			"parameters": {},
-			"id": "transcript-input",
-			"name": "Transcript input",
-			"type": "n8n-nodes-base.manualTrigger",
-			"typeVersion": 1,
-			"position": [260, 300]
-		},
-		{
-			"parameters": {
-				"mode": "raw",
-				"jsonOutput": "{\n  \"bot_id\": \"replace-with-a-post-call-bot-id\"\n}"
-			},
-			"id": "set-bot-id",
-			"name": "Set post-call bot ID",
-			"type": "n8n-nodes-base.set",
-			"typeVersion": 3.4,
-			"position": [480, 300]
-		},
-		{
-			"parameters": {
-				"resource": "bot",
-				"operation": "getTranscriptions",
-				"botId": "={{$json.bot_id}}"
-			},
-			"id": "meetstream-transcriptions",
-			"name": "MeetStream: Get transcriptions",
-			"type": "n8n-nodes-meetstream.meetStream",
-			"typeVersion": 1,
-			"position": [720, 300]
-		},
-		{
-			"parameters": {
-				"resource": "transcript",
-				"operation": "getTranscript",
-				"transcriptId": "={{$json.transcriptions[0].transcript_id}}"
-			},
-			"id": "meetstream-transcript",
-			"name": "MeetStream: Get transcript",
-			"type": "n8n-nodes-meetstream.meetStream",
-			"typeVersion": 1,
-			"position": [960, 300]
-		},
-		{
-			"parameters": {},
-			"id": "llm-handoff",
-			"name": "LLM summarisation (configure)",
-			"type": "n8n-nodes-base.noOp",
-			"typeVersion": 1,
-			"position": [1200, 300]
-		}
-	],
-	"connections": {
-		"Transcript input": { "main": [[{ "node": "Set post-call bot ID", "type": "main", "index": 0 }]] },
-		"Set post-call bot ID": {
-			"main": [[{ "node": "MeetStream: Get transcriptions", "type": "main", "index": 0 }]]
-		},
-		"MeetStream: Get transcriptions": {
-			"main": [[{ "node": "MeetStream: Get transcript", "type": "main", "index": 0 }]]
-		},
-		"MeetStream: Get transcript": {
-			"main": [[{ "node": "LLM summarisation (configure)", "type": "main", "index": 0 }]]
-		}
-	},
-	"active": false,
-	"settings": { "executionOrder": "v1" },
-	"meta": { "templateCredsSetupCompleted": false }
+  "name": "MeetStream — Summarize live transcript turns with OpenAI",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Production setup\nConnect MeetStream + OpenAI credentials, activate this workflow, and copy the production webhook URL into the configuration node. Put the webhook behind a gateway with request-size and adaptive rate limits before exposing it publicly.\n\nOnly finalized speaker turns reach OpenAI; interim words are ignored to control cost.",
+        "height": 250,
+        "width": 560
+      },
+      "id": "ecae655c-129d-46ae-b02c-9f34897f26cf",
+      "name": "Production setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, -100]
+    },
+    {
+      "parameters": {},
+      "id": "8ba217d8-293c-4dd3-a8e2-2a459c43086e",
+      "name": "Start a live transcription bot",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [180, 180]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"meetingLink\": \"https://replace-with-a-meeting-you-own\",\n  \"liveWebhookUrl\": \"https://YOUR_N8N_HOST/webhook/meetstream-live-turns-e94892de\"\n}",
+        "options": {}
+      },
+      "id": "741dbe2c-aeb3-4b73-aaca-463df2949c2c",
+      "name": "Configure meeting and production webhook",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [430, 180]
+    },
+    {
+      "parameters": {
+        "resource": "bot",
+        "operation": "createBot",
+        "meetingLink": "={{ $json.meetingLink }}",
+        "botName": "MeetStream Live Summarizer",
+        "videoRequired": false,
+        "transcriptionMode": "live",
+        "liveProvider": "deepgram_streaming",
+        "liveWebhookUrl": "={{ $json.liveWebhookUrl }}",
+        "transcriptionLanguage": "en",
+        "providerOptions": "{}",
+        "callbackUrl": "",
+        "joinAt": "",
+        "deduplicationKey": "",
+        "idempotencyKey": "=n8n-live:{{ $execution.id }}",
+        "customAttributes": "{\"source\":\"n8n_live_summary\"}"
+      },
+      "id": "c2a17110-f71d-4112-887e-9adb21590d22",
+      "name": "Create live transcription bot",
+      "type": "n8n-nodes-meetstream.meetStream",
+      "typeVersion": 1,
+      "position": [690, 180],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meetstream-live-turns-e94892de",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "d44e6fd9-729a-457a-919b-ce01474286c3",
+      "name": "Receive live transcript chunks",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [180, 460],
+      "webhookId": "e94892de-636f-4dfe-87d6-703ced25d12a"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nif (payload.end_of_turn !== true) return [];\nconst text = String(payload.utterance || payload.transcript || payload.new_text || '').trim();\nif (!payload.bot_id || !text) return [];\nreturn [{ json: { bot_id: String(payload.bot_id), speaker: payload.speakerName ?? 'Speaker', text, timestamp: payload.timestamp } }];"
+      },
+      "id": "6809e711-b6f8-4f37-b43f-885d3bc0513e",
+      "name": "Keep final speaker turns",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 460]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "response",
+        "modelId": { "__rl": true, "value": "gpt-4o-mini", "mode": "list", "cachedResultName": "gpt-4o-mini" },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "type": "text",
+              "content": "Summarize one finalized live meeting turn in one concise sentence. Preserve decisions, commitments, names, dates, and numbers. Do not invent context."
+            },
+            {
+              "role": "user",
+              "type": "text",
+              "content": "=Speaker: {{ $json.speaker }}\nFinalized turn: {{ $json.text }}"
+            }
+          ]
+        },
+        "simplify": true,
+        "options": { "temperature": 0.2 }
+      },
+      "id": "e96bc261-44f8-43dd-9c56-400040780e02",
+      "name": "Summarize live turn",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [700, 460]
+    }
+  ],
+  "connections": {
+    "Start a live transcription bot": { "main": [[{ "node": "Configure meeting and production webhook", "type": "main", "index": 0 }]] },
+    "Configure meeting and production webhook": { "main": [[{ "node": "Create live transcription bot", "type": "main", "index": 0 }]] },
+    "Receive live transcript chunks": { "main": [[{ "node": "Keep final speaker turns", "type": "main", "index": 0 }]] },
+    "Keep final speaker turns": { "main": [[{ "node": "Summarize live turn", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
 }

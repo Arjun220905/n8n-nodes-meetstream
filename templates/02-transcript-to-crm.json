@@ -1,71 +1,122 @@
 {
-	"name": "MeetStream — Transcript to CRM starter",
-	"nodes": [
-		{
-			"parameters": {},
-			"id": "meeting-ended",
-			"name": "Meeting ended",
-			"type": "n8n-nodes-base.manualTrigger",
-			"typeVersion": 1,
-			"position": [260, 300]
-		},
-		{
-			"parameters": {
-				"mode": "raw",
-				"jsonOutput": "{\n  \"bot_id\": \"replace-with-a-post-call-bot-id\"\n}"
-			},
-			"id": "bot-id-input",
-			"name": "Set post-call bot ID",
-			"type": "n8n-nodes-base.set",
-			"typeVersion": 3.4,
-			"position": [480, 300]
-		},
-		{
-			"parameters": {
-				"resource": "bot",
-				"operation": "getTranscriptions",
-				"botId": "={{$json.bot_id}}"
-			},
-			"id": "get-transcriptions",
-			"name": "MeetStream: Get transcriptions",
-			"type": "n8n-nodes-meetstream.meetStream",
-			"typeVersion": 1,
-			"position": [720, 300]
-		},
-		{
-			"parameters": {
-				"resource": "transcript",
-				"operation": "getTranscript",
-				"transcriptId": "={{$json.transcriptions[0].transcript_id}}"
-			},
-			"id": "get-transcript",
-			"name": "MeetStream: Get transcript",
-			"type": "n8n-nodes-meetstream.meetStream",
-			"typeVersion": 1,
-			"position": [960, 300]
-		},
-		{
-			"parameters": {},
-			"id": "crm-handoff",
-			"name": "CRM handoff (configure)",
-			"type": "n8n-nodes-base.noOp",
-			"typeVersion": 1,
-			"position": [1200, 300]
-		}
-	],
-	"connections": {
-		"Meeting ended": { "main": [[{ "node": "Set post-call bot ID", "type": "main", "index": 0 }]] },
-		"Set post-call bot ID": {
-			"main": [[{ "node": "MeetStream: Get transcriptions", "type": "main", "index": 0 }]]
-		},
-		"MeetStream: Get transcriptions": {
-			"main": [[{ "node": "MeetStream: Get transcript", "type": "main", "index": 0 }]]
-		},
-		"MeetStream: Get transcript": {
-			"main": [[{ "node": "CRM handoff (configure)", "type": "main", "index": 0 }]]
-		}
-	},
-	"active": false,
-	"settings": { "executionOrder": "v1" },
-	"meta": { "templateCredsSetupCompleted": false }
+  "name": "MeetStream — Save completed transcripts to HubSpot",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Production setup\nConnect MeetStream + HubSpot credentials and put this webhook behind a gateway that verifies MeetStream's workspace-webhook signature and rate-limits requests. Forward only verified POST requests here. Set `custom_attributes.hubspot_contact_id` when creating each bot.\n\nMeetStream delivery is best-effort, so monitor failed n8n executions and retry them from n8n.",
+        "height": 260,
+        "width": 560
+      },
+      "id": "68d45a90-9f39-4147-9074-8e19aa58b84f",
+      "name": "Production setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 20]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meetstream-transcript-ready-6dd798bf",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "d45a2a7b-6e78-4b90-a4de-82dd350073d9",
+      "name": "MeetStream transcription webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [200, 300],
+      "webhookId": "6dd798bf-68d2-43f4-b53e-d9ef8803206f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nconst event = payload.bot_event ?? payload.event;\nif (event !== 'transcription.processed' || payload.transcript_status !== 'Success') return [];\nif (!payload.bot_id) throw new Error('MeetStream webhook did not include bot_id.');\nconst contactId = payload.custom_attributes?.hubspot_contact_id;\nif (!contactId) throw new Error('Set custom_attributes.hubspot_contact_id when creating the bot.');\nreturn [{ json: { ...payload, bot_id: String(payload.bot_id), hubspot_contact_id: String(contactId) } }];"
+      },
+      "id": "1318208f-7586-4199-bcec-896ddca435c9",
+      "name": "Accept successful transcript event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "resource": "bot",
+        "operation": "getTranscriptions",
+        "botId": "={{ $json.bot_id }}"
+      },
+      "id": "609e2940-627b-490d-9a20-ac5316e1f77f",
+      "name": "Get transcription runs",
+      "type": "n8n-nodes-meetstream.meetStream",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const runs = Array.isArray($json.transcriptions) ? $json.transcriptions : [];\nconst completed = runs\n  .filter((run) => run.status === 'Success' && run.transcript_id)\n  .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')));\nif (!completed.length) throw new Error('No successful post-call transcription run was returned.');\nreturn [{ json: { transcript_id: completed[0].transcript_id } }];"
+      },
+      "id": "98e2baac-f789-43dc-aab5-b8c4915b6ba2",
+      "name": "Select latest successful transcript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "resource": "transcript",
+        "operation": "getTranscript",
+        "transcriptId": "={{ $json.transcript_id }}",
+        "raw": false
+      },
+      "id": "ba70e4a6-4d11-454e-9974-cfd30418a671",
+      "name": "Get transcript",
+      "type": "n8n-nodes-meetstream.meetStream",
+      "typeVersion": 1,
+      "position": [1160, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const segments = Array.isArray($json.data) ? $json.data : [];\nif (!segments.length) throw new Error('MeetStream returned an empty transcript.');\nconst transcript = segments.map((segment) => `${segment.speaker ?? 'Speaker'}: ${segment.transcript ?? ''}`).join('\\n');\nconst event = $('Accept successful transcript event').item.json;\nreturn [{ json: { bot_id: event.bot_id, hubspot_contact_id: event.hubspot_contact_id, transcript } }];"
+      },
+      "id": "a9397fcd-51c2-462b-8922-c7e21623495c",
+      "name": "Format transcript for CRM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "engagement",
+        "operation": "create",
+        "type": "meeting",
+        "metadata": {
+          "title": "=MeetStream transcript — {{ $json.bot_id }}",
+          "body": "={{ $json.transcript }}",
+          "internalMeetingNotes": "={{ $json.transcript }}"
+        },
+        "additionalFields": {
+          "associations": { "contactIds": "={{ $json.hubspot_contact_id }}" }
+        }
+      },
+      "id": "6a010bed-a3d7-498e-9cfb-9beb94999487",
+      "name": "Create HubSpot meeting note",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [1660, 300]
+    }
+  ],
+  "connections": {
+    "MeetStream transcription webhook": { "main": [[{ "node": "Accept successful transcript event", "type": "main", "index": 0 }]] },
+    "Accept successful transcript event": { "main": [[{ "node": "Get transcription runs", "type": "main", "index": 0 }]] },
+    "Get transcription runs": { "main": [[{ "node": "Select latest successful transcript", "type": "main", "index": 0 }]] },
+    "Select latest successful transcript": { "main": [[{ "node": "Get transcript", "type": "main", "index": 0 }]] },
+    "Get transcript": { "main": [[{ "node": "Format transcript for CRM", "type": "main", "index": 0 }]] },
+    "Format transcript for CRM": { "main": [[{ "node": "Create HubSpot meeting note", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
 }

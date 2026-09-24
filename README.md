@@ -10,7 +10,7 @@ Create a MeetStream credential with an API key from [app.meetstream.ai/api-key](
 
 ## Included operations
 
-- **Bot → Create Bot**: send a bot to an HTTPS meeting link.
+- **Bot → Create Bot**: send or schedule a bot, choose video and post-call/live transcription, attach callback URLs and metadata, and prevent duplicates with MeetStream idempotency keys.
 - **Bot → Get Bot**: retrieve bot details, including `transcript_id` when available.
 - **Bot → Get Transcriptions**: list post-call transcription runs and their `transcript_id` values.
 - **Bot → Get Recording**: retrieve processed video.
@@ -18,9 +18,9 @@ Create a MeetStream credential with an API key from [app.meetstream.ai/api-key](
 - **Bot → Leave Meeting**: make the bot leave while retaining data.
 - **Transcript → Get Transcript**: retrieve a formatted transcript by `transcript_id`, or select **Raw Response** for the provider payload.
 
-For post-call providers, first use **Get Transcriptions**, then map its `transcript_id` into **Get Transcript**. Bots configured with MeetStream's `meeting_captions` provider deliberately return no `transcript_id`; use the caption artifact exposed by **Get Bot** instead. Similarly, **Get Summary** returns a 404 until MeetStream has generated a summary for that bot.
+For post-call providers, first use **Get Transcriptions**, then map its `transcript_id` into **Get Transcript**. Formatted transcript arrays are returned in the node's `data` property so each input item remains one n8n item. Bots configured with MeetStream's `meeting_captions` provider deliberately return no `transcript_id`; use the caption artifact exposed by **Get Bot** instead. Similarly, **Get Summary** returns a 404 until MeetStream has generated a summary for that bot.
 
-Requests are restricted to `https://api.meetstream.ai`, use a 60-second timeout, and rely on n8n's retry-on-fail controls for rate-limit backoff. The node never logs API keys.
+Lifecycle callbacks and live transcripts are different MeetStream channels: **Lifecycle Callback URL** receives status/post-call events, while **Live Transcript Webhook URL** receives streaming transcript chunks. Live providers do not emit the normal post-call transcript events. Requests are restricted to `https://api.meetstream.ai`, use a 60-second timeout, and rely on n8n's retry-on-fail controls for rate-limit backoff. The node never logs API keys.
 
 ## Development and local runtime test
 
@@ -38,7 +38,7 @@ npm run dev
 
 `npm run dev` starts a local n8n instance with this node loaded. Open `http://localhost:5678`, create a MeetStream credential, then first run **Bot → Get Bot** against an existing bot ID. Use a meeting you own for any **Create Bot** test and call **Leave Meeting** afterwards.
 
-## Release and verification
+## Release and n8n verification
 
 The package has no runtime dependencies and is released only through GitHub Actions with npm provenance. Before the first release:
 
@@ -50,9 +50,23 @@ The package has no runtime dependencies and is released only through GitHub Acti
 
 If this repository is transferred to `meetstream-ai`, update the `repository.url` metadata and npm trusted-publisher configuration before the next release.
 
+See [docs/release-and-verification.md](docs/release-and-verification.md) for the exact release gate, evidence to keep, template-publication steps, and ownership handoff.
+
 ## Workflow blueprints
 
-The `templates/` directory contains five importable starting points covering calendar auto-join, CRM transcript capture, transcript-to-LLM summarisation, post-meeting recap, and customer storage delivery. Each blueprint begins with an editable **Set** node so it can be tested safely, then should be replaced with a customer-specific trigger or input item that supplies its meeting link, bot ID, or transcript ID. For post-call transcription templates, insert **Get Transcriptions** before **Get Transcript** to resolve the ID; `meeting_captions` bots use their caption artifact instead. This node has no trigger/webhook listener, so the LLM blueprint is intentionally post-call rather than a real-time transcript integration.
+The `templates/` directory contains five complete, importable workflows:
+
+1. Google Calendar event start → extract the meeting URL → create one deduplicated MeetStream bot.
+2. `transcription.processed` webhook → resolve and format the transcript → create a HubSpot meeting engagement.
+3. Create a streaming bot and receive finalized live turns → OpenAI summarisation.
+4. `bot.done` webhook → fetch the MeetStream summary → post it to Slack.
+5. `video.processed` webhook → fetch a fresh presigned URL → download the file → upload it to Amazon S3.
+
+They intentionally contain no credentials or customer data. After import, connect the credentials and destination named in [templates/README.md](templates/README.md). Webhook workflows use n8n's immediate response mode so MeetStream gets a fast 2xx acknowledgement.
+
+## Webhook security and rate limiting
+
+n8n owns the HTTP listener; this package does not open a server or bypass n8n's authentication controls. MeetStream per-bot `callback_url` deliveries are not signed. For production, prefer a signed MeetStream workspace webhook and verify it at an API gateway/reverse proxy before forwarding to n8n. Apply request-size limits and per-IP/per-path rate limits there, keep n8n patched, and never make the n8n editor publicly reachable. See [docs/webhook-security.md](docs/webhook-security.md).
 
 ## Support
 

@@ -1,56 +1,90 @@
 {
-	"name": "MeetStream — Recording to customer storage starter",
-	"nodes": [
-		{
-			"parameters": {},
-			"id": "meeting-ended",
-			"name": "Meeting ended",
-			"type": "n8n-nodes-base.manualTrigger",
-			"typeVersion": 1,
-			"position": [260, 300]
-		},
-		{
-			"parameters": {
-				"mode": "raw",
-				"jsonOutput": "{\n  \"bot_id\": \"replace-with-a-bot-id\"\n}"
-			},
-			"id": "set-bot-id",
-			"name": "Set bot ID",
-			"type": "n8n-nodes-base.set",
-			"typeVersion": 3.4,
-			"position": [480, 300]
-		},
-		{
-			"parameters": {
-				"resource": "bot",
-				"operation": "getRecording",
-				"botId": "={{$json.bot_id}}"
-			},
-			"id": "get-recording",
-			"name": "MeetStream: Get recording",
-			"type": "n8n-nodes-meetstream.meetStream",
-			"typeVersion": 1,
-			"position": [720, 300]
-		},
-		{
-			"parameters": {},
-			"id": "storage",
-			"name": "Google Drive or S3 upload (configure)",
-			"type": "n8n-nodes-base.noOp",
-			"typeVersion": 1,
-			"position": [980, 300]
-		}
-	],
-	"connections": {
-		"Meeting ended": { "main": [[{ "node": "Set bot ID", "type": "main", "index": 0 }]] },
-		"Set bot ID": {
-			"main": [[{ "node": "MeetStream: Get recording", "type": "main", "index": 0 }]]
-		},
-		"MeetStream: Get recording": {
-			"main": [[{ "node": "Google Drive or S3 upload (configure)", "type": "main", "index": 0 }]]
-		}
-	},
-	"active": false,
-	"settings": { "executionOrder": "v1" },
-	"meta": { "templateCredsSetupCompleted": false }
+  "name": "MeetStream — Archive completed recordings in Amazon S3",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Production setup\nConnect MeetStream + AWS credentials and choose a private bucket. Put this webhook behind a gateway that verifies MeetStream's workspace-webhook signature and rate-limits requests.\n\nThe workflow fetches a fresh one-hour recording URL, downloads it immediately, and stores it at `meetstream/<bot_id>.mp4`.",
+        "height": 250,
+        "width": 560
+      },
+      "id": "5e3a5cf3-a6ee-4381-8cc2-2e5c830a303b",
+      "name": "Production setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, 20]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meetstream-video-ready-b719af7b",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "69a7969f-6e39-441c-8f4a-c9ed6bd0714f",
+      "name": "MeetStream video webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [180, 300],
+      "webhookId": "b719af7b-2806-491c-abcb-b72ba5a204d1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nconst event = payload.bot_event ?? payload.event;\nif (event !== 'video.processed' || payload.video_status !== 'Success') return [];\nif (!payload.bot_id) throw new Error('MeetStream webhook did not include bot_id.');\nreturn [{ json: { ...payload, bot_id: String(payload.bot_id) } }];"
+      },
+      "id": "757dbb3b-9ce1-4d29-ab32-41452817202e",
+      "name": "Accept successful video event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [430, 300]
+    },
+    {
+      "parameters": {
+        "resource": "bot",
+        "operation": "getRecording",
+        "botId": "={{ $json.bot_id }}"
+      },
+      "id": "7cc58082-8f0d-4338-a56f-c251cd853421",
+      "name": "Get fresh recording URL",
+      "type": "n8n-nodes-meetstream.meetStream",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 10000
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.video_url }}",
+        "options": { "response": { "response": { "responseFormat": "file" } } }
+      },
+      "id": "eecf9326-d72a-455c-b8b7-6a861cc5b78d",
+      "name": "Download recording before URL expires",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "bucketName": "replace-with-your-private-bucket",
+        "fileName": "=meetstream/{{ $('Accept successful video event').item.json.bot_id }}.mp4",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "additionalFields": {}
+      },
+      "id": "57388bcc-d6d3-4f28-9b2c-c6f85b2f993a",
+      "name": "Upload recording to S3",
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    }
+  ],
+  "connections": {
+    "MeetStream video webhook": { "main": [[{ "node": "Accept successful video event", "type": "main", "index": 0 }]] },
+    "Accept successful video event": { "main": [[{ "node": "Get fresh recording URL", "type": "main", "index": 0 }]] },
+    "Get fresh recording URL": { "main": [[{ "node": "Download recording before URL expires", "type": "main", "index": 0 }]] },
+    "Download recording before URL expires": { "main": [[{ "node": "Upload recording to S3", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
 }

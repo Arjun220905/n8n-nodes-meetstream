@@ -1,50 +1,78 @@
 {
-	"name": "MeetStream — Post-meeting recap starter",
-	"nodes": [
-		{
-			"parameters": {},
-			"id": "meeting-ended",
-			"name": "Meeting ended",
-			"type": "n8n-nodes-base.manualTrigger",
-			"typeVersion": 1,
-			"position": [260, 300]
-		},
-		{
-			"parameters": {
-				"mode": "raw",
-				"jsonOutput": "{\n  \"bot_id\": \"replace-with-a-bot-id\"\n}"
-			},
-			"id": "set-bot-id",
-			"name": "Set bot ID",
-			"type": "n8n-nodes-base.set",
-			"typeVersion": 3.4,
-			"position": [480, 300]
-		},
-		{
-			"parameters": { "resource": "bot", "operation": "getSummary", "botId": "={{$json.bot_id}}" },
-			"id": "get-summary",
-			"name": "MeetStream: Get summary",
-			"type": "n8n-nodes-meetstream.meetStream",
-			"typeVersion": 1,
-			"position": [720, 300]
-		},
-		{
-			"parameters": {},
-			"id": "delivery",
-			"name": "Email or chat delivery (configure)",
-			"type": "n8n-nodes-base.noOp",
-			"typeVersion": 1,
-			"position": [980, 300]
-		}
-	],
-	"connections": {
-		"Meeting ended": { "main": [[{ "node": "Set bot ID", "type": "main", "index": 0 }]] },
-		"Set bot ID": { "main": [[{ "node": "MeetStream: Get summary", "type": "main", "index": 0 }]] },
-		"MeetStream: Get summary": {
-			"main": [[{ "node": "Email or chat delivery (configure)", "type": "main", "index": 0 }]]
-		}
-	},
-	"active": false,
-	"settings": { "executionOrder": "v1" },
-	"meta": { "templateCredsSetupCompleted": false }
+  "name": "MeetStream — Send post-meeting summaries to Slack",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Production setup\nConnect MeetStream + Slack credentials and select a channel. Put this webhook behind a gateway that verifies MeetStream's workspace-webhook signature and rate-limits requests, then forward only verified POST requests here.\n\n`bot.done` means processing finished; the summary read is retried because availability can still be transient.",
+        "height": 250,
+        "width": 560
+      },
+      "id": "e476a536-ed9a-47ca-81c0-d4feec8e48a6",
+      "name": "Production setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, 20]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meetstream-meeting-done-09c53a6d",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "c526080e-9b51-438a-bdac-ccca58b8c3b5",
+      "name": "MeetStream lifecycle webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [220, 300],
+      "webhookId": "09c53a6d-f7a3-4844-9466-f191e2b3455e"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nconst event = payload.bot_event ?? payload.event;\nif (event !== 'bot.done') return [];\nif (!payload.bot_id) throw new Error('MeetStream webhook did not include bot_id.');\nreturn [{ json: { ...payload, bot_id: String(payload.bot_id) } }];"
+      },
+      "id": "78cce984-b6bc-447f-bf5a-49ae975a8390",
+      "name": "Accept completed meetings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "resource": "bot",
+        "operation": "getSummary",
+        "botId": "={{ $json.bot_id }}"
+      },
+      "id": "8e54ce60-87b5-40af-bc9a-90fc0ceff625",
+      "name": "Get meeting summary",
+      "type": "n8n-nodes-meetstream.meetStream",
+      "typeVersion": 1,
+      "position": [720, 300],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 10000
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "", "mode": "list", "cachedResultName": "Choose a Slack channel" },
+        "messageType": "text",
+        "text": "=:memo: *MeetStream meeting recap*\n*Bot:* {{ $('Accept completed meetings').item.json.bot_id }}\n\n{{ $json.summary || $json.meeting_summary || $json.text || JSON.stringify($json, null, 2) }}",
+        "otherOptions": {}
+      },
+      "id": "cc103e3d-ff5f-4ad1-af50-d2350676d551",
+      "name": "Post recap to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [980, 300]
+    }
+  ],
+  "connections": {
+    "MeetStream lifecycle webhook": { "main": [[{ "node": "Accept completed meetings", "type": "main", "index": 0 }]] },
+    "Accept completed meetings": { "main": [[{ "node": "Get meeting summary", "type": "main", "index": 0 }]] },
+    "Get meeting summary": { "main": [[{ "node": "Post recap to Slack", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
 }

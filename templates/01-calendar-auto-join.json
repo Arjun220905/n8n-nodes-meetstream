@@ -1,46 +1,71 @@
 {
-	"name": "MeetStream — Calendar auto-join starter",
-	"nodes": [
-		{
-			"parameters": {},
-			"id": "calendar-trigger",
-			"name": "Calendar event",
-			"type": "n8n-nodes-base.manualTrigger",
-			"typeVersion": 1,
-			"position": [260, 300]
-		},
-		{
-			"parameters": {
-				"mode": "raw",
-				"jsonOutput": "{\n  \"meetingLink\": \"https://replace-with-your-meeting-link\"\n}"
-			},
-			"id": "meeting-link-input",
-			"name": "Set meeting link",
-			"type": "n8n-nodes-base.set",
-			"typeVersion": 3.4,
-			"position": [480, 300]
-		},
-		{
-			"parameters": {
-				"resource": "bot",
-				"operation": "createBot",
-				"meetingLink": "={{$json.meetingLink}}",
-				"botName": "MeetStream Notetaker"
-			},
-			"id": "create-bot",
-			"name": "MeetStream: Create bot",
-			"type": "n8n-nodes-meetstream.meetStream",
-			"typeVersion": 1,
-			"position": [720, 300]
-		}
-	],
-	"connections": {
-		"Calendar event": { "main": [[{ "node": "Set meeting link", "type": "main", "index": 0 }]] },
-		"Set meeting link": {
-			"main": [[{ "node": "MeetStream: Create bot", "type": "main", "index": 0 }]]
-		}
-	},
-	"active": false,
-	"settings": { "executionOrder": "v1" },
-	"meta": { "templateCredsSetupCompleted": false }
+  "name": "MeetStream — Auto-join Google Calendar meetings",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Setup\n1. Connect Google Calendar and MeetStream credentials.\n2. Select a calendar in the trigger.\n3. Activate the workflow.\n\nThe event ID + occurrence time are used for both deduplication and retry safety, so one calendar occurrence creates at most one bot.",
+        "height": 220,
+        "width": 500
+      },
+      "id": "ba25c54b-1f0f-47dd-8f24-70897750d40f",
+      "name": "Setup and behavior",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 20]
+    },
+    {
+      "parameters": {
+        "pollTimes": { "item": [{ "mode": "everyMinute" }] },
+        "calendarId": { "__rl": true, "value": "", "mode": "list", "cachedResultName": "Choose your calendar" },
+        "triggerOn": "eventStarted",
+        "options": {}
+      },
+      "id": "69c4dc62-736f-433e-8de4-c547a441f6b7",
+      "name": "When a calendar event starts",
+      "type": "n8n-nodes-base.googleCalendarTrigger",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const event = $json;\nconst entryPoints = event.conferenceData?.entryPoints ?? [];\nconst videoEntry = entryPoints.find((entry) => entry.entryPointType === 'video')?.uri;\nconst text = `${event.location ?? ''} ${event.description ?? ''}`;\nconst textLink = text.match(/https:\\/\\/(?:meet\\.google\\.com|zoom\\.us|[^\\s]+\\.zoom\\.us|teams\\.microsoft\\.com)\\/[^\\s<>]+/i)?.[0];\nconst meetingLink = event.hangoutLink ?? videoEntry ?? textLink;\nif (!meetingLink) throw new Error('This calendar event does not contain a supported HTTPS meeting link.');\nconst occurrence = event.start?.dateTime ?? event.start?.date ?? 'unknown-start';\nreturn [{ json: {\n  meetingLink,\n  deduplicationKey: `google-calendar:${event.id}:${occurrence}`,\n  customAttributes: {\n    source: 'n8n_google_calendar',\n    calendar_event_id: event.id,\n    event_start: occurrence,\n    event_title: event.summary ?? ''\n  }\n} }];"
+      },
+      "id": "db214acc-b65e-486b-b8e3-490072a21b55",
+      "name": "Extract meeting details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "resource": "bot",
+        "operation": "createBot",
+        "meetingLink": "={{ $json.meetingLink }}",
+        "botName": "MeetStream Notetaker",
+        "videoRequired": true,
+        "transcriptionMode": "postCall",
+        "postCallProvider": "meetstream",
+        "transcriptionLanguage": "",
+        "providerOptions": "{}",
+        "callbackUrl": "",
+        "joinAt": "",
+        "deduplicationKey": "={{ $json.deduplicationKey }}",
+        "idempotencyKey": "={{ $json.deduplicationKey }}",
+        "customAttributes": "={{ JSON.stringify($json.customAttributes) }}"
+      },
+      "id": "01d5a33d-8ec9-463c-a479-e66f4803bb07",
+      "name": "Create MeetStream bot",
+      "type": "n8n-nodes-meetstream.meetStream",
+      "typeVersion": 1,
+      "position": [760, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "When a calendar event starts": { "main": [[{ "node": "Extract meeting details", "type": "main", "index": 0 }]] },
+    "Extract meeting details": { "main": [[{ "node": "Create MeetStream bot", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
 }

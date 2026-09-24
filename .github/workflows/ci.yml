@@ -30,10 +30,7 @@ jobs:
       - name: Run lint
         run: npm run lint
 
-      - name: Run build
-        run: npm run build
-
-      - name: Run tests
+      - name: Build and run tests
         run: npm test
 
       - name: Verify publishable package contents
